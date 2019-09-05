@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+<title>Souissi App</title>
+
+<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+<!--Import Google Icon Font-->
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons"
+	rel="stylesheet">
+<!--Import materialize.css-->
+<!-- Compiled and minified CSS -->
+<link rel="stylesheet"
+	href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+	
+<link rel='stylesheet' type='text/css' href='sdk/map.css' />
+<script src='sdk/tomtom.min.js'></script>
+<style>
+#map {
+	height: 575px;
+	width: 1360px;
+}
+</style>
+
+<!--Let browser know website is optimized for mobile-->
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+
+
+
+<script th:inline="javascript">
+	/*<![CDATA[*/
+	
+	    var markers = [[${listData}]];
+		
+	/*]]>*/
+	
+	
+	
+	
+
+	console.log(markers);
+
+
+</script>
+
+
+
+<script>
+				function sendDataViaAjax(){
+					
+					document.getElementById("load").style.visibility = "visible";
+
+					
+					var newArr = [];
+
+					for(var i = 0; i < matrix.length; i++)
+					{
+					    newArr = newArr.concat(matrix[i]);
+					}
+
+					$.ajax({
+					    url: 'http://localhost:8080/getResult',
+					    type: 'POST',
+					    data: {
+					    	numberOfMarkers : numberOfMarkers,
+					    	disMatrix : newArr,
+					    },
+					    success: function(response){
+					    	console.log(response);
+					    	document.getElementById("load").style.visibility = "hidden";
+					    	alert("Now Ready");
+					 		printIt(response);
+					    	resFinal = response;
+					    	calculScoreDistance();
+					    	sendData();
+					    },
+					    error : function(e) {
+					        alert('Error: ' + e);
+					    }
+					});
+					
+				}
+</script>
+
+
+
+<script>
+
+	function calculScoreDistance() {
+		
+		var distance = 0;
+		
+		for(var j=1 ; j<resFinal.length ; j++) {
+			distance += matrix[resFinal[j-1]][resFinal[j]];
+		}
+				
+		document.getElementById("distance").innerHTML = "Distance of the Traject :" +distance +" Meter. ";
+		
+	}
+	
+	
+	function printIt(response){
+		var str = "";
+		for(var i=0 ; i<numberOfMarkers ; i++){
+			str = str + markers[response[i]].name+" --> ";
+		}
+		str = str + markers[response[numberOfMarkers]].name+".";
+		document.getElementById("result").innerHTML = "The Traject : "+str;
+		console.log(response);
+	}
+
+</script>
+
+
+
+</head>
+
+<body>
+	<div id = "load" class="progress" style="visibility: hidden;">
+      	<div class="indeterminate"></div>
+  	</div>
+	<button onclick="window.location.href = '/index.html';"
+		class="btn waves-effect waves-light">
+		<i class="material-icons right"></i> HOME
+	</button>
+	<input class="btn waves-effect waves-light" type="button" value="Run Algo" onclick="FillDisMatrix();" />
+	<input class="btn waves-effect waves-light" type="button" value="Next" onclick="showResInMap();" />
+	<div >
+		<span id="distance"> </span>   <span id="result" > </span>
+	</div>
+	<div id='map'></div>
+
+
+	<script>
+		
+	var numberOfMarkers = 0;
+	var matrix = [];
+	var c = 0;
+	var LIMIT = 0;
+	var resFinal = [];
+	var step = 0;
+	var fromSendData = false;
+	
+	
+	// Creating map
+	var map = tomtom.L.map('map', {
+		key: 'yF3ApghnnR21AZy3fYV7pDdB2qGSg6f2',
+	});
+		
+	
+	// product name and version
+	tomtom.setProductInfo('SouiSSi Project', 'Beta Version');
+	
+	// Setting TomTom keys
+	tomtom.searchKey('yF3ApghnnR21AZy3fYV7pDdB2qGSg6f2');
+	tomtom.routingKey('yF3ApghnnR21AZy3fYV7pDdB2qGSg6f2');
+	
+	
+	// Marker layer to display the results over the map
+	var markersLayer = L.tomTomMarkersLayer().addTo(map);
+	
+	
+	
+	
+	
+	
+	
+	
+	function FillDisMatrix(){
+		c = 0;
+		matrix = [];
+		LIMIT = 0;
+		for(var i=0; i<numberOfMarkers; i++) {
+			matrix[i] =  new Array(numberOfMarkers);
+			for(var j=0; j<=i; j++) {
+					var aa = markers[i].x;
+					var bb = markers[i].y;
+					var xx = markers[j].x;
+					var yy = markers[j].y;
+					disBetweenCord(aa,bb,xx,yy,i,j);
+					console.log("inside Fill " + c + " "  + aa + " " + bb + " " + xx + " " + yy) ;
+					c++;
+			}
+		}
+	}
+	
+	
+		
+	
+	
+	function disBetweenCord(a,b,x,y,i,j){
+		console.log(LIMIT);
+		var R = tomtom.routing({
+			traffic: false, 
+			callback : function(routeJson) {
+				matrix[i][j] = routeJson.features[0].properties.summary.lengthInMeters;
+				matrix[j][i] = matrix[i][j];
+				LIMIT++;
+				if(LIMIT == (numberOfMarkers * (numberOfMarkers+1)) / 2){
+					sendDataViaAjax();
+				}
+			}
+		})
+		.locations(a+','+b+':'+x+','+y)
+		.go();
+	}
+	
+	
+			
+			
+			
+			
+	
+
+	
+	
+
+	
+	
+	
+
+	
+	
+	
+	
+	function sendData(){
+		// log data in matrix 
+		for(var i=0; i<numberOfMarkers; i++) {
+			for(var j=0; j<numberOfMarkers; j++) {
+				console.log(i+" "+j+" "+matrix[i][j]);
+			}
+		}
+		fromSendData = true;
+		showResInMap(resFinal);
+	}
+	
+	
+	
+	
+	function showResInMap(){
+		if(fromSendData){
+			step++;
+			if(step<resFinal.length){
+				var point = resFinal[step-1];
+				var pointNext = resFinal[step];
+				var xx = markers[pointNext].x;
+				var yy = markers[pointNext].y;
+				var aa = markers[point].x;
+				var bb = markers[point].y;
+				DrawRouteAB(aa,bb,xx,yy);
+				console.log(point+" "+pointNext);
+			}
+			else{
+				alert("ALL STEPS ARE DONE ");
+			}
+		}
+	}
+
+
+	
+	
+	
+	
+	function getRandomColor() {
+	  var letters = '0123456789ABCDEF';
+	  var color = '#';
+	  for (var i = 0; i < 6; i++) {
+		color += letters[Math.floor(Math.random() * 16)];
+	  }
+	  return color;
+	}
+	
+	
+	
+	
+	
+	
+	
+	function DrawRouteAB(a,b,x,y){
+	
+		tomtom.routing({
+			traffic: false
+		}) 
+		.locations(a+','+b+':'+x+','+y)
+		.go().then(function(routeJson) {
+			var route = tomtom.L.geoJson(routeJson, {
+				style: {color: getRandomColor(), opacity: 0.99}
+			}).addTo(map);
+			map.fitBounds(route.getBounds(), {padding: [5, 5]});
+		});
+		
+		
+	}
+	
+	
+	
+	
+
+	// control panel 
+	var controlPanel = tomtom.controlPanel({
+			position: 'bottomright',
+			title: 'Settings',
+			collapsed: true
+	 }).addTo(map);
+
+	controlPanel
+		.addContent(buildUnitControl())
+		.addContent(buildLanguageViewControl())
+		.addContent(buildGeopolViewControl(map));
+   
+	
+
+	
+	
+	
+	
+	
+	
+
+
+	
+
+
+
+	function fillWithMarkers(markersLayerI){
+		var markerOptions;
+		if(numberOfMarkers==0){
+			markerOptions = {
+				title: 'Marker',
+				draggable: true,
+				useBlackIcons: true,
+				icon: tomtom.L.icon({
+			            iconUrl: 'sdk/images/circle-moderate.png',
+	
+			    })
+			};
+		}
+		else{
+			markerOptions = {
+				title: 'Marker',
+				draggable: true,
+				useBlackIcons: true,
+				icon: tomtom.L.icon({
+		            iconUrl: 'sdk/images/marker-icon.png',
+		          
+		    	})
+				
+			};
+		}
+		tomtom.L.marker([markersLayerI.x, markersLayerI.y], markerOptions).addTo(map);
+
+		numberOfMarkers++;
+}
+	
+	
+	
+	
+	
+
+
+	// Draw a marker at the center of the map
+	function drawSearchCenter() {
+		var currentLocation = map.getCenter();
+		var markerOptions = {
+			title: 'Search Center\nLatitude: ' + currentLocation.lat + '\nLongitude: ' + currentLocation.lng,
+			icon: tomtom.L.icon({
+				iconUrl: 'sdk/images/marker-icon.png',
+				iconSize: [24, 24],
+				iconAnchor: [12, 12]
+			})
+		};
+		searchCenterLayer.clearLayers();
+		searchCenterLayer.addLayer(
+			tomtom.L.marker([currentLocation.lat, currentLocation.lng], markerOptions)
+		).addTo(map);
+	}
+
+	function buildUnitControl() {
+		unitSelector = tomtom.unitSelector.getHtmlElement(tomtom.globalUnitService);
+
+		return wrapControl(unitSelector, 'Unit of measurement');
+	}
+
+	function buildLanguageViewControl() {
+		var languageSelector = tomtom.languageSelector.getHtmlElement(tomtom.globalLocaleService, 'search');
+
+		return wrapControl(languageSelector, 'Search language');
+	}
+
+	function buildGeopolViewControl() {
+		var geopolViewSelector = tomtom.geopolViewSelector.getHtmlElement(tomtom.globalGeopolViewService, 'search');
+
+		return wrapControl(geopolViewSelector, 'Geopolitical view');
+	}
+
+	function wrapControl(control, label) {
+		var rowElement = document.createElement('div');
+		var labelElement = document.createElement('label');
+		var spanElement = document.createElement('span');
+		spanElement.innerText = label + ': ';
+		labelElement.appendChild(spanElement);
+		labelElement.appendChild(control);
+		rowElement.appendChild(labelElement);
+		rowElement.className = 'input-container';
+		return rowElement;
+	}
+
+	
+	
+	
+	console.log(markers);
+	for(var i = 0 ; i<markers.length ; i++){
+		fillWithMarkers(markers[i]);
+		console.log(i);
+	}
+	
+	</script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
