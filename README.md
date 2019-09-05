@@ -1,2 +1,0 @@
-# SpringBootAlgoGenetic
-Genetic algo simulation
